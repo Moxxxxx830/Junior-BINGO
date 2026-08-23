@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ジュニアBINGO</title>
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --accent-color: #a29bfe;
+            --correct-color: #00b894;
+            --wrong-color: #d63031;
+            --combo-color: #fdcb6e;
+            --grid-cols: 3;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 520px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #info-board {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 20px;
+            border-radius: 12px;
+        }
+
+        .info-item span {
+            color: var(--combo-color);
+            font-size: 20px;
+        }
+
+        #combo-box {
+            height: 30px;
+            font-size: 22px;
+            font-weight: 900;
+            font-style: italic;
+            color: var(--combo-color);
+            text-shadow: 0 0 10px rgba(253, 203, 110, 0.8);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #combo-box.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        #target-name {
+            font-size: 32px;
+            color: #ffffff;
+            margin: 10px 0 15px 0;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+            min-height: 45px;
+        }
+
+        #selector-box {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 15px 0 20px 0;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .selector-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+        }
+
+        .custom-select {
+            padding: 8px 12px;
+            font-size: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #photo-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--grid-cols), 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .photo-card {
+            width: 100%;
+            padding-top: 100%;
+            position: relative;
+            cursor: pointer;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.05);
+            transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        .photo-card:hover {
+            transform: translateY(-3px) scale(1.02);
+            border-color: var(--accent-color);
+            box-shadow: 0 6px 15px rgba(108, 92, 231, 0.4);
+        }
+
+        .photo-card:active {
+            transform: scale(0.95);
+        }
+
+        .photo-card img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        .photo-card.correct {
+            border-color: var(--correct-color) !important;
+            box-shadow: 0 0 25px var(--correct-color) !important;
+            animation: pulse-green 0.3s ease-out;
+        }
+
+        .photo-card.wrong {
+            border-color: var(--wrong-color) !important;
+            box-shadow: 0 0 25px var(--wrong-color) !important;
+            animation: shake-red 0.3s ease-in-out;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake-red {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px); }
+            40% { transform: translateX(6px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary-color), #8334eb);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(108, 92, 231, 0.6);
+        }
+
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="info-board">
+        <div class="info-item">用时: <span id="timer">0.00</span>s</div>
+        <div class="info-item">进度: <span id="progress">0/10</span></div>
+    </div>
+
+    <div id="combo-box">🔥 COMBO x2!</div>
+
+    <div id="selector-box">
+        <div class="selector-item">
+            <label for="group-select"><b>题库分组：</b></label>
+            <select id="group-select" class="custom-select">
+            <option value="无所全员">无所全员</option>
+            <option value="东">东</option>
+            <option value="西">西</option>
+            <option value="18-22年组">18-22年组</option>
+            <option value="23-24年组">23-24年组</option>
+            <option value="25-26年组">25-26年组</option>
+            </select>
+        </div>
+
+        <div class="selector-item">
+            <label for="grid-select"><b>宫格难度：</b></label>
+            <select id="grid-select" class="custom-select">
+                <option value="4">2 x 2 (4宫格)</option>
+                <option value="9" selected>3 x 3 (9宫格)</option>
+                <option value="16">4 x 4 (16宫格)</option>
+            </select>
+        </div>
+
+        <div class="selector-item">
+            <label for="count-select"><b>挑战题量：</b></label>
+            <select id="count-select" class="custom-select">
+                <option value="10" selected>10 题 (⭐)</option>
+                <option value="25">25 题 (⭐⭐)</option>
+                <option value="50">50 题 (⭐⭐⭐)</option>
+                <option value="0">无限模式</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="target-name">准备就绪后点击“开始游戏”</div>
+
+    <div id="photo-grid"></div>
+
+    <button id="start-btn" class="btn" onclick="startGame()">开始游戏</button>
+</div>
+
+<script>
+      // 按分组配置人名（每组请确保至少有 9 个人）
+    const groupsData = {
+         "无所全员": [
+           "田村海琉", "千井野空翔", "阿達慶", "竹村実悟", "渡邉大我", "田仲陽成", "羽村仁成", "堀口由翔", "松浦銀志", "関翔馬", "岡橋亮汰", "久保廉", "岸蒼太", "鍋田大成", "高橋奏琉", "鈴木瑛朝", "壹岐碧", "林田芯", "小久保向一朗", "小山十輝", "渡辺惟良", "末永光", "大田蒼空", "北野快浬", "岡田耕明", "小尾颯", "アンダーソンフェニックス", "デービスジョシュ", "三原健豊", "三浦慎ノ亮", "上田凱吏", "中崎結翔", "中川亜音", "中本輝", "亀井碧空", "井上蒼生", "仲田慎平", "伯井太陽", "佐野斗真", "元重瑛翔", "内田煌音", "善如寺來", "塩山直太朗", "宮岡大愛", "宮部敬太", "宮部聡太", "山上琉偉", "山岸想", "山崎旺夏", "岡夢人", "岡野すこやか", "岩崎楓士", "川口拓馬", "平田光寛", "新宮楓真", "染谷樹", "森ケイン", "横田大都", "橋本誠吾", "濱出顕斗", "瀬川嵐太", "田代海瑠", "田﨑駿斗", "真虎", "笹田陽之介", "藤本有惺", "藤田真暢", "西中秀太", "西原至", "西巻染", "西野湊人", "西野統真", "谷口尊星", "野母一晟", "野田開仁", "馬場律樹", "高橋礼", "中野英司", "中須賀湊登", "今江翔", "佐藤凛空", "出雲颯空", "小松原頼安", "小森ラリマール世界", "山庄司蒼偉", "山本湊翔", "山田輝虎", "川上楓愛", "川津レオン", "廣末裕理", "松浦栞大", "梨子木憐", "江口煌真", "池田陸斗", "浅井乃我", "玉城琉衣", "田口寛晃", "竹田湊", "高谷弦汰", "鳥居桜丞", "鹿島榮人"
+        ],
+         "东": [
+           "田村海琉", "千井野空翔", "阿達慶", "竹村実悟", "田仲陽成", "羽村仁成", "堀口由翔", "松浦銀志", "関翔馬", "岡橋亮汰", "久保廉", "岸蒼太", "鍋田大成", "高橋奏琉", "鈴木瑛朝", "壹岐碧", "林田芯", "小久保向一朗", "小山十輝", "渡辺惟良", "末永光", "アンダーソンフェニックス",  "三原健豊", "佐野斗真", "内田煌音", "善如寺來", "宮岡大愛", "宮部敬太", "宮部聡太", "山岸想", "山崎旺夏", "岩崎楓士", "平田光寛", "新宮楓真", "染谷樹", "横田大都", "田代海瑠", "真虎", "西中秀太", "西原至", "西巻染", "馬場律樹", "高橋礼", "出雲颯空", "小松原頼安", "小森ラリマール世界", "川津レオン", "松浦栞大", "梨子木憐", "江口煌真", "浅井乃我", "玉城琉衣", "田口寛晃", "竹田湊", "高谷弦汰", "鳥居桜丞"
+        ],
+         "西": [
+           "渡邉大我", "大田蒼空", "北野快浬", "岡田耕明", "小尾颯", "デービスジョシュ", "三浦慎ノ亮", "上田凱吏", "中崎結翔", "中川亜音", "中本輝", "亀井碧空", "井上蒼生", "仲田慎平", "伯井太陽", "元重瑛翔", "塩山直太朗", "山上琉偉", "岡夢人", "岡野すこやか", "川口拓馬", "森ケイン", "橋本誠吾", "濱出顕斗", "瀬川嵐太", "田﨑駿斗", "笹田陽之介", "藤本有惺", "藤田真暢", "西野湊人", "西野統真", "谷口尊星", "野母一晟", "野田開仁", "中野英司", "中須賀湊登", "今江翔", "佐藤凛空", "山庄司蒼偉", "山本湊翔", "山田輝虎", "川上楓愛",  "廣末裕理", "池田陸斗", "鹿島榮人"
+        ],
+          "18-22年组": [
+           "田村海琉", "千井野空翔", "阿達慶", "竹村実悟", "渡邉大我", "田仲陽成", "羽村仁成", "堀口由翔", "松浦銀志", "関翔馬", "岡橋亮汰", "久保廉", "岸蒼太", "鍋田大成", "高橋奏琉", "鈴木瑛朝", "壹岐碧", "林田芯", "小久保向一朗", "小山十輝", "渡辺惟良", "末永光", "大田蒼空", "北野快浬", "岡田耕明", "小尾颯"
+        ],
+          "23-24年组": [
+            "アンダーソンフェニックス", "デービスジョシュ", "三原健豊", "三浦慎ノ亮", "上田凱吏", "中崎結翔", "中川亜音", "中本輝", "亀井碧空", "井上蒼生", "仲田慎平", "伯井太陽", "佐野斗真", "元重瑛翔", "内田煌音", "善如寺來", "塩山直太朗", "宮岡大愛", "宮部敬太", "宮部聡太", "山上琉偉", "山岸想", "山崎旺夏", "岡夢人", "岡野すこやか", "岩崎楓士", "川口拓馬", "平田光寛", "新宮楓真", "染谷樹", "森ケイン", "横田大都", "橋本誠吾", "濱出顕斗", "瀬川嵐太", "田代海瑠", "田﨑駿斗", "真虎", "笹田陽之介", "藤本有惺", "藤田真暢", "西中秀太", "西原至", "西巻染", "西野湊人", "西野統真", "谷口尊星", "野母一晟", "野田開仁", "馬場律樹", "高橋礼"
+        ],
+        "25-26年组": [
+          "中野英司", "中須賀湊登", "今江翔", "佐藤凛空", "出雲颯空", "小松原頼安", "小森ラリマール世界", "山庄司蒼偉", "山本湊翔", "山田輝虎", "川上楓愛", "川津レオン", "廣末裕理", "松浦栞大", "梨子木憐", "江口煌真", "池田陸斗", "浅井乃我", "玉城琉衣", "田口寛晃", "竹田湊", "高谷弦汰", "鳥居桜丞", "鹿島榮人"
+        ]
+    };
+    //
+
+    let activePeople = [];
+    let currentQuestion = 0;
+    let totalQuestions = 10;
+    let correctCount = 0;
+    let combo = 0;
+    let gridCount = 9;
+
+    let timer = null;
+    let startTime = 0;
+    let elapsedTime = 0;
+
+    let currentTarget = null;
+    let isPlaying = false;
+    let canClick = true;
+
+    function shuffle(array) {
+        return array.slice().sort(() => Math.random() - 0.5);
+    }
+
+    // 图片预加载函数：避免网络延迟
+    function preloadImages(peopleList, callback) {
+        let loadedCount = 0;
+        const total = peopleList.length;
+        const startBtn = document.getElementById('start-btn');
+        startBtn.disabled = true;
+        document.getElementById('target-name').textContent = "正在加载图片资源...";
+
+        peopleList.forEach(person => {
+            const img = new Image();
+            img.src = person.photo;
+            img.onload = img.onerror = () => {
+                loadedCount++;
+                if (loadedCount === total) {
+                    startBtn.disabled = false;
+                    callback();
+                }
+            };
+        });
+    }
+
+    function startGame() {
+        gridCount = parseInt(document.getElementById('grid-select').value);
+        totalQuestions = parseInt(document.getElementById('count-select').value);
+
+        const cols = Math.sqrt(gridCount);
+        document.documentElement.style.setProperty('--grid-cols', cols);
+
+        const selectedGroup = document.getElementById('group-select').value;
+        let activeNames = [];
+
+        if (selectedGroup === "all") {
+            Object.values(groupsData).forEach(list => {
+                activeNames = activeNames.concat(list);
+            });
+            activeNames = [...new Set(activeNames)];
+        } else {
+            activeNames = groupsData[selectedGroup] || [];
+        }
+
+        if (activeNames.length < gridCount) {
+            alert(`【${selectedGroup}】当前仅有 ${activeNames.length} 人，无法生成 ${gridCount} 宫格！`);
+            return;
+        }
+
+        activePeople = activeNames.map(name => ({
+            name: name,
+            photo: `./images/${name}.jpg`
+        }));
+
+        // 预加载完图片后再启动游戏
+        preloadImages(activePeople, () => {
+            currentQuestion = 0;
+            correctCount = 0;
+            combo = 0;
+            isPlaying = true;
+
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('selector-box').style.display = 'none';
+
+            updateProgressDisplay();
+            hideCombo();
+
+            // 正式启动秒表计时器
+            startTime = Date.now();
+            timer = setInterval(() => {
+                elapsedTime = (Date.now() - startTime) / 1000;
+                document.getElementById('timer').textContent = elapsedTime.toFixed(2);
+            }, 30);
+
+            nextRound();
+        });
+    }
+
+    function updateProgressDisplay() {
+        if (totalQuestions === 0) {
+            document.getElementById('progress').textContent = `${currentQuestion} (无限)`;
+        } else {
+            document.getElementById('progress').textContent = `${currentQuestion}/${totalQuestions}`;
+        }
+    }
+
+    function nextRound() {
+        if (!isPlaying) return;
+
+        // 判断是否已达到目标题量
+        if (totalQuestions !== 0 && currentQuestion >= totalQuestions) {
+            finishGame();
+            return;
+        }
+
+        currentQuestion++;
+        updateProgressDisplay();
+        canClick = true;
+
+        const shuffledAll = shuffle(activePeople);
+        const currentBatch = shuffledAll.slice(0, gridCount);
+
+        currentTarget = currentBatch[Math.floor(Math.random() * currentBatch.length)];
+        document.getElementById('target-name').textContent = currentTarget.name;
+
+        const grid = document.getElementById('photo-grid');
+        grid.innerHTML = '';
+
+        currentBatch.forEach(person => {
+            const card = document.createElement('div');
+            card.className = 'photo-card';
+
+            const img = document.createElement('img');
+            img.src = person.photo;
+
+            card.appendChild(img);
+            card.onclick = () => handleChoice(person, card);
+            grid.appendChild(card);
+        });
+    }
+
+  function handleChoice(selectedPerson, cardElement) {
+    if (!isPlaying || !canClick) return;
+    canClick = false;
+
+    if (selectedPerson.name === currentTarget.name) {
+        // 答对逻辑
+        correctCount++;
+        combo++;
+        cardElement.classList.add('correct');
+        showCombo(combo);
+
+        setTimeout(() => {
+            nextRound();
+        }, 200);
+
+    } else {
+        // 答错逻辑
+        cardElement.classList.add('wrong');
+        
+        // 💡 关键区别：如果是无限模式（totalQuestions === 0），一错即终！
+        if (totalQuestions === 0) {
+            setTimeout(() => {
+                finishGame(true); // 传入 true 表示因答错而结束
+            }, 300);
+        } else {
+            // 固定题量模式：重置 combo，扣分/记录后继续下一题
+            combo = 0;
+            hideCombo();
+            setTimeout(() => {
+                nextRound();
+            }, 300);
+        }
+    }
+}
+
+    function showCombo(count) {
+        const comboBox = document.getElementById('combo-box');
+        if (count >= 2) {
+            comboBox.textContent = `🔥 COMBO x${count}!`;
+            comboBox.classList.add('active');
+        } else {
+            hideCombo();
+        }
+    }
+
+    function hideCombo() {
+        document.getElementById('combo-box').classList.remove('active');
+    }
+
+    function finishGame(isInfiniteFailed = false) {
+    clearInterval(timer);
+    isPlaying = false;
+
+    const finalTime = elapsedTime.toFixed(2);
+
+    if (totalQuestions === 0) {
+        // 🏆 无限模式结算弹窗
+        const avgTime = correctCount > 0 ? (elapsedTime / correctCount).toFixed(2) : "0.00";
+        alert(`💥 遗憾答错，游戏结束！\n\n🏆 最终连胜：${correctCount} 题\n⏱️ 生存用时：${finalTime} 秒\n⚡ 平均反应：${avgTime} 秒/题`);
+        document.getElementById('target-name').textContent = `最高连胜: ${correctCount} 题`;
+    } else {
+        // 🏁 固定题量模式结算弹窗
+        const avgTime = (elapsedTime / totalQuestions).toFixed(2);
+        const accuracy = ((correctCount / totalQuestions) * 100).toFixed(1);
+        alert(`🏁 挑战完成！\n\n总用时：${finalTime} 秒\n正确率：${accuracy}% (${correctCount}/${totalQuestions})\n平均单题响应：${avgTime} 秒`);
+        document.getElementById('target-name').textContent = "挑战完成！";
+    }
+
+    document.getElementById('start-btn').textContent = "再次挑战";
+    document.getElementById('start-btn').style.display = 'inline-block';
+    document.getElementById('selector-box').style.display = 'flex';
+    hideCombo();
+}
+</script>
+
+</body>
+</html>
+
