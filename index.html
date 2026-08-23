@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ジュニアBINGO</title>
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --accent-color: #a29bfe;
+            --correct-color: #00b894;
+            --wrong-color: #d63031;
+            --combo-color: #fdcb6e;
+            --grid-cols: 3; /* 默认 3x3，通过 JS 动态修改 */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 520px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #info-board {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 20px;
+            border-radius: 12px;
+        }
+
+        .info-item span {
+            color: var(--combo-color);
+            font-size: 20px;
+        }
+
+        #combo-box {
+            height: 30px;
+            font-size: 22px;
+            font-weight: 900;
+            font-style: italic;
+            color: var(--combo-color);
+            text-shadow: 0 0 10px rgba(253, 203, 110, 0.8);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #combo-box.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        #target-name {
+            font-size: 32px;
+            color: #ffffff;
+            margin: 10px 0 15px 0;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+            min-height: 45px;
+        }
+
+        /* 选项控制区域布局 */
+        #selector-box {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 15px 0 20px 0;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .selector-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+        }
+
+        .custom-select {
+            padding: 8px 12px;
+            font-size: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* 动态网格，列数由 CSS 变量 --grid-cols 决定 */
+        #photo-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--grid-cols), 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .photo-card {
+            width: 100%;
+            padding-top: 100%;
+            position: relative;
+            cursor: pointer;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.05);
+            transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        .photo-card:hover {
+            transform: translateY(-3px) scale(1.02);
+            border-color: var(--accent-color);
+            box-shadow: 0 6px 15px rgba(108, 92, 231, 0.4);
+        }
+
+        .photo-card:active {
+            transform: scale(0.95);
+        }
+
+        .photo-card img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        .photo-card.correct {
+            border-color: var(--correct-color) !important;
+            box-shadow: 0 0 25px var(--correct-color) !important;
+            animation: pulse-green 0.4s ease-out;
+        }
+
+        .photo-card.wrong {
+            border-color: var(--wrong-color) !important;
+            box-shadow: 0 0 25px var(--wrong-color) !important;
+            animation: shake-red 0.4s ease-in-out;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake-red {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px); }
+            40% { transform: translateX(6px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        .score-popup {
+            position: absolute;
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--combo-color);
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            animation: float-up 0.8s ease-out forwards;
+            z-index: 10;
+        }
+
+        @keyframes float-up {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+            50% { transform: translate(-50%, -100%) scale(1.3); }
+            100% { opacity: 0; transform: translate(-50%, -150%) scale(1); }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary-color), #8334eb);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(108, 92, 231, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="info-board">
+        <div class="info-item">得分: <span id="score">0</span></div>
+        <div class="info-item">剩余时间: <span id="timer">--</span>s</div>
+    </div>
+
+    <div id="combo-box">🔥 COMBO x2!</div>
+
+    <!-- 独立的 3 个控制项：分组、时间、宫格 -->
+    <div id="selector-box">
+        <div class="selector-item">
+            <label for="group-select"><b>题库分组：</b></label>
+            <select id="group-select" class="custom-select">
+            <option value="all">无所全员</option>
+            <option value="18-22年组">18-22年组</option>
+            <option value="23-24年组">23-24年组</option>
+            <option value="25-26年组">25-26年组</option>
+            </select>
+        </div>
+
+        <div class="selector-item">
+            <label for="time-select"><b>限时难度：</b></label>
+            <select id="time-select" class="custom-select" onchange="updateTimeDisplay()">
+                <option value="8">8 秒 (简单)</option>
+                <option value="6" selected>6 秒 (普通)</option>
+                <option value="4">4 秒 (困难)</option>
+            </select>
+        </div>
+
+        <div class="selector-item">
+            <label for="grid-select"><b>宫格难度：</b></label>
+            <select id="grid-select" class="custom-select">
+                <option value="4">2 x 2 (4宫格)</option>
+                <option value="9" selected>3 x 3 (9宫格)</option>
+                <option value="16">4 x 4 (16宫格)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="target-name">调整设置后点击“开始游戏”</div>
+
+    <div id="photo-grid"></div>
+
+    <button id="start-btn" class="btn" onclick="startGame()">开始游戏</button>
+</div>
+
+<script>
+    // 按分组配置人名（每组请确保至少有 9 个人）
+    const groupsData = {
+          "18-22年组": [
+           "田村海琉", "千井野空翔", "阿達慶", "竹村実悟", "渡邉大我", "田仲陽成", "羽村仁成", "堀口由翔", "松浦銀志", "関翔馬", "岡橋亮汰", "久保廉", "岸蒼太", "鍋田大成", "高橋奏琉", "鈴木瑛朝", "壹岐碧", "林田芯", "小久保向一朗", "小山十輝", "渡辺惟良", "末永光", "大田蒼空", "北野快浬", "岡田耕明", "小尾颯"
+        ],
+          "23-24年组": [
+            "アンダーソンフェニックス", "デービスジョシュ", "三原健豊", "三浦慎ノ亮", "上田凱吏", "中崎結翔", "中川亜音", "中本輝", "亀井碧空", "井上蒼生", "仲田慎平", "伯井太陽", "佐野斗真", "元重瑛翔", "内田煌音", "善如寺來", "塩山直太朗", "宮岡大愛", "宮部敬太", "宮部聡太", "山上琉偉", "山岸想", "山崎旺夏", "岡夢人", "岡野すこやか", "岩崎楓士", "川口拓馬", "平田光寛", "新宮楓真", "染谷樹", "森ケイン", "横田大都", "橋本誠吾", "濱出顕斗", "瀬川嵐太", "田代海瑠", "田﨑駿斗", "真虎", "笹田陽之介", "藤本有惺", "藤田真暢", "西中秀太", "西原至", "西巻染", "西野湊人", "西野統真", "谷口尊星", "野母一晟", "野田開仁", "馬場律樹", "高橋礼"
+        ],
+        "25-26年组": [
+          "中野英司", "中須賀湊登", "今江翔", "佐藤凛空", "出雲颯空", "小松原頼安", "小森ラリマール世界", "山庄司蒼偉", "山本湊翔", "山田輝虎", "川上楓愛", "川津レオン", "廣末裕理", "松浦栞大", "梨子木憐", "江口煌真", "池田陸斗", "浅井乃我", "玉城琉衣", "田口寛晃", "竹田湊", "高谷弦汰", "鳥居桜丞", "鹿島榮人"
+        ]
+    };
+    //
+
+    let activePeople = [];
+    let score = 0;
+    let combo = 0;
+    let timer = null;
+    let currentTarget = null;
+    let isPlaying = false;
+    let canClick = true;
+    
+    let gameTime = 6.0;  // 当前每轮时间
+    let gridCount = 9;   // 当前卡片总数 (4, 9, 16)
+
+    // 初始化倒计时显示
+    updateTimeDisplay();
+
+    function updateTimeDisplay() {
+        if (!isPlaying) {
+            const selectedTime = parseFloat(document.getElementById('time-select').value);
+            document.getElementById('timer').textContent = selectedTime.toFixed(1);
+        }
+    }
+
+    function shuffle(array) {
+        return array.slice().sort(() => Math.random() - 0.5);
+    }
+
+    function startGame() {
+        // 1. 读取独立选中的时间与宫格模式
+        gameTime = parseFloat(document.getElementById('time-select').value);
+        gridCount = parseInt(document.getElementById('grid-select').value);
+
+        // 2. 根据选中的宫格计算 CSS 变量 --grid-cols
+        const cols = Math.sqrt(gridCount); 
+        document.documentElement.style.setProperty('--grid-cols', cols);
+
+        // 3. 准备题库数据
+        const selectedGroup = document.getElementById('group-select').value;
+        let activeNames = [];
+
+        if (selectedGroup === "all") {
+            Object.values(groupsData).forEach(list => {
+                activeNames = activeNames.concat(list);
+            });
+            activeNames = [...new Set(activeNames)];
+        } else {
+            activeNames = groupsData[selectedGroup] || [];
+        }
+
+        // 4. 校验人员数量是否满足当前选中的宫格模式
+        if (activeNames.length < gridCount) {
+            alert(`【${selectedGroup}】当前仅有 ${activeNames.length} 人，无法生成 ${gridCount} 宫格！请选择更多人的分组或降低宫格难度。`);
+            return;
+        }
+
+        activePeople = activeNames.map(name => ({
+            name: name,
+            photo: `./images/${name}.jpg`
+        }));
+
+        score = 0;
+        combo = 0;
+        isPlaying = true;
+        
+        document.getElementById('score').textContent = score;
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('selector-box').style.display = 'none';
+        
+        hideCombo();
+        nextRound();
+    }
+
+    function nextRound() {
+        if (!isPlaying) return;
+
+        clearInterval(timer);
+        canClick = true;
+        document.getElementById('timer').textContent = gameTime.toFixed(1);
+
+        const shuffledAll = shuffle(activePeople);
+        // 根据选择的宫格数量动态裁切数组
+        const currentBatch = shuffledAll.slice(0, gridCount);
+
+        currentTarget = currentBatch[Math.floor(Math.random() * currentBatch.length)];
+        document.getElementById('target-name').textContent = currentTarget.name;
+
+        const grid = document.getElementById('photo-grid');
+        grid.innerHTML = '';
+
+        currentBatch.forEach(person => {
+            const card = document.createElement('div');
+            card.className = 'photo-card';
+            
+            const img = document.createElement('img');
+            img.src = person.photo;
+            
+            img.onerror = () => {
+                console.error(`图片加载失败: ${person.photo}`);
+            };
+
+            card.appendChild(img);
+            card.onclick = (e) => handleChoice(person, card, e);
+            grid.appendChild(card);
+        });
+
+        // 启动倒计时
+        const startTime = Date.now();
+        timer = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const remaining = Math.max(0, gameTime - elapsed);
+            document.getElementById('timer').textContent = remaining.toFixed(1);
+
+            if (remaining <= 0) {
+                clearInterval(timer);
+                gameOver("超时啦！没有在规定时间内选出。");
+            }
+        }, 50);
+    }
+
+    function handleChoice(selectedPerson, cardElement, event) {
+        if (!isPlaying || !canClick) return;
+
+        canClick = false;
+        clearInterval(timer);
+
+        if (selectedPerson.name === currentTarget.name) {
+            combo++;
+            const earnedScore = 10 + (combo - 1) * 5;
+            score += earnedScore;
+            document.getElementById('score').textContent = score;
+
+            cardElement.classList.add('correct');
+            showCombo(combo);
+            showScorePopup(`+${earnedScore}`, event.clientX, event.clientY);
+
+            setTimeout(() => {
+                nextRound();
+            }, 350);
+
+        } else {
+            combo = 0;
+            hideCombo();
+            cardElement.classList.add('wrong');
+            
+            setTimeout(() => {
+                gameOver(`选错啦！正确答案是：${currentTarget.name}`);
+            }, 400);
+        }
+    }
+
+    function showCombo(count) {
+        const comboBox = document.getElementById('combo-box');
+        if (count >= 2) {
+            comboBox.textContent = `🔥 COMBO x${count}!`;
+            comboBox.classList.add('active');
+        } else {
+            hideCombo();
+        }
+    }
+
+    function hideCombo() {
+        const comboBox = document.getElementById('combo-box');
+        comboBox.classList.remove('active');
+    }
+
+    function showScorePopup(text, x, y) {
+        const popup = document.createElement('div');
+        popup.className = 'score-popup';
+        popup.textContent = text;
+        popup.style.left = `${x}px`;
+        popup.style.top = `${y}px`;
+
+        document.body.appendChild(popup);
+
+        setTimeout(() => {
+            popup.remove();
+        }, 800);
+    }
+
+    function gameOver(reason) {
+        isPlaying = false;
+        alert(`${reason}\n最终得分：${score}`);
+        
+        document.getElementById('target-name').textContent = "游戏结束";
+        document.getElementById('start-btn').textContent = "再试一次";
+        document.getElementById('start-btn').style.display = 'inline-block';
+        document.getElementById('selector-box').style.display = 'flex';
+        hideCombo();
+        updateTimeDisplay();
+    }
+</script>
+
+</body>
+</html>
